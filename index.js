@@ -149,8 +149,11 @@ async function run() {
     try {
         const useRelease = core.getInput('use_release');
         const buildExeOnly = core.getBooleanInput('build_exe_only');
-        let buildDir = 'pyappify_build';
+        const buildDir = process.env.RUNNER_TEMP
+            ? path.join(process.env.RUNNER_TEMP, 'p')
+            : 'p';
         core.info(`start running buildExeOnly:${buildExeOnly} useRelease:${useRelease}`);
+        core.info(`Using build directory: ${buildDir}`);
 
         if (useRelease && buildExeOnly) {
             throw new Error('use_release and build_exe_only cannot be used at the same time.');
