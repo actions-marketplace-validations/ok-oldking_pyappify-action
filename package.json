@@ -17,5 +17,10 @@
     },
     "devDependencies": {
         "@vercel/ncc": "^0.38.3"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+          "esbuild"
+        ]
     }
 }

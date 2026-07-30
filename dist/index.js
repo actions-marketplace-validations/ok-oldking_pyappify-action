@@ -72107,6 +72107,21 @@ async function createZipArchive(sourceDir, zipFilePath, rootDirName) {
     });
 }
 
+function allowPnpmBuildScripts(packageJsonPath) {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    const pnpmConfig = packageJson.pnpm || {};
+    const onlyBuiltDependencies = new Set(pnpmConfig.onlyBuiltDependencies || []);
+    onlyBuiltDependencies.add('esbuild');
+
+    packageJson.pnpm = {
+        ...pnpmConfig,
+        onlyBuiltDependencies: Array.from(onlyBuiltDependencies).sort(),
+    };
+
+    fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+    core.info(`Allowed pnpm build scripts for: ${packageJson.pnpm.onlyBuiltDependencies.join(', ')}`);
+}
+
 async function downloadAndExtractRelease(useReleaseUrl, appName, platform, exeDestPath, targetReleasePath) {
     core.startGroup('Downloading and extracting executable from release');
     const token = process.env.GITHUB_TOKEN;
@@ -72156,8 +72171,11 @@ async function run() {
     try {
         const useRelease = core.getInput('use_release');
         const buildExeOnly = core.getBooleanInput('build_exe_only');
-        let buildDir = 'pyappify_build';
+        const buildDir = process.env.RUNNER_TEMP
+            ? path.join(process.env.RUNNER_TEMP, 'p')
+            : 'p';
         core.info(`start running buildExeOnly:${buildExeOnly} useRelease:${useRelease}`);
+        core.info(`Using build directory: ${buildDir}`);
 
         if (useRelease && buildExeOnly) {
             throw new Error('use_release and build_exe_only cannot be used at the same time.');
@@ -72228,6 +72246,8 @@ async function run() {
             const cargoToml = fs.readFileSync(cargoTomlPath, 'utf8');
             const newCargoToml = cargoToml.replace(/name = "pyappify"/g, `name = "${appName}"`);
             fs.writeFileSync(cargoTomlPath, newCargoToml);
+
+            allowPnpmBuildScripts(path.join(buildDir, 'package.json'));
 
             if (config.uac === true) {
                 const buildRsPath = path.join(buildDir, 'src-tauri', 'build.rs');
