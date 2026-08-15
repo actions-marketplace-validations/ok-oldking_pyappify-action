@@ -1,6 +1,51 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 7299:
+/***/ ((module) => {
+
+function replaceExactStringValues(value, from, to) {
+    if (typeof value === 'string') {
+        return value === from ? to : value;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(item => replaceExactStringValues(item, from, to));
+    }
+
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [
+                key,
+                replaceExactStringValues(item, from, to),
+            ]),
+        );
+    }
+
+    return value;
+}
+
+function getMainBinaryName(appName) {
+    return `${appName} Launcher`;
+}
+
+function prepareTauriConfig(contents, appName, version) {
+    let config = JSON.parse(contents);
+    config = replaceExactStringValues(config, 'pyappify', appName);
+    config = replaceExactStringValues(config, '0.0.1', version.replace(/^v/, ''));
+    config.mainBinaryName = getMainBinaryName(appName);
+
+    return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+module.exports = {
+    getMainBinaryName,
+    prepareTauriConfig,
+};
+
+
+/***/ }),
+
 /***/ 4914:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -72030,6 +72075,7 @@ const fs = __nccwpck_require__(9896);
 const path = __nccwpck_require__(6928);
 const archiver = __nccwpck_require__(9392);
 const http = __nccwpck_require__(4844);
+const { getMainBinaryName, prepareTauriConfig } = __nccwpck_require__(7299);
 
 async function setupPnpm() {
     core.startGroup('Setting up pnpm');
@@ -72196,8 +72242,10 @@ async function run() {
         const platform = process.platform;
         const exeSuffix = platform === 'win32' ? '.exe' : '';
         const appBinaryName = `${appName}${exeSuffix}`;
+        const mainBinaryName = getMainBinaryName(appName);
+        const mainBinaryFileName = `${mainBinaryName}${exeSuffix}`;
         const exeDestPath = path.join(appDistDir, appBinaryName);
-        const exeSourcePath = path.join(buildDir, 'src-tauri', 'target', 'release', appBinaryName);
+        const exeSourcePath = path.join(buildDir, 'src-tauri', 'target', 'release', mainBinaryFileName);
 
         let pyappifyVersion = core.getInput('version');
 
@@ -72238,8 +72286,7 @@ async function run() {
 
             const tauriConfPath = path.join(buildDir, 'src-tauri', 'tauri.conf.json');
             const tauriConf = fs.readFileSync(tauriConfPath, 'utf8');
-            let newTauriConf = tauriConf.replace(/"pyappify"/g, JSON.stringify(appName));
-            newTauriConf = newTauriConf.replace(/"0.0.1"/g, JSON.stringify(pyappifyVersion.replace(/^v/, '')));
+            const newTauriConf = prepareTauriConfig(tauriConf, appName, pyappifyVersion);
             fs.writeFileSync(tauriConfPath, newTauriConf);
 
             const cargoTomlPath = path.join(buildDir, 'src-tauri', 'Cargo.toml');
