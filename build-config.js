@@ -20,7 +20,7 @@ function replaceExactStringValues(value, from, to) {
 }
 
 function getMainBinaryName(appName) {
-    return `${appName} Launcher`;
+    return appName;
 }
 
 function prepareTauriConfig(contents, appName, version) {
