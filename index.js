@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
 const http = require('@actions/http-client');
+const { getMainBinaryName, prepareTauriConfig } = require('./build-config');
 
 async function setupPnpm() {
     core.startGroup('Setting up pnpm');
@@ -174,8 +175,10 @@ async function run() {
         const platform = process.platform;
         const exeSuffix = platform === 'win32' ? '.exe' : '';
         const appBinaryName = `${appName}${exeSuffix}`;
+        const mainBinaryName = getMainBinaryName(appName);
+        const mainBinaryFileName = `${mainBinaryName}${exeSuffix}`;
         const exeDestPath = path.join(appDistDir, appBinaryName);
-        const exeSourcePath = path.join(buildDir, 'src-tauri', 'target', 'release', appBinaryName);
+        const exeSourcePath = path.join(buildDir, 'src-tauri', 'target', 'release', mainBinaryFileName);
 
         let pyappifyVersion = core.getInput('version');
 
@@ -216,8 +219,7 @@ async function run() {
 
             const tauriConfPath = path.join(buildDir, 'src-tauri', 'tauri.conf.json');
             const tauriConf = fs.readFileSync(tauriConfPath, 'utf8');
-            let newTauriConf = tauriConf.replace(/"pyappify"/g, JSON.stringify(appName));
-            newTauriConf = newTauriConf.replace(/"0.0.1"/g, JSON.stringify(pyappifyVersion.replace(/^v/, '')));
+            const newTauriConf = prepareTauriConfig(tauriConf, appName, pyappifyVersion);
             fs.writeFileSync(tauriConfPath, newTauriConf);
 
             const cargoTomlPath = path.join(buildDir, 'src-tauri', 'Cargo.toml');
